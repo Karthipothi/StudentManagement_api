@@ -1,0 +1,1385 @@
+{
+    "id": "init-a-initiation",
+    "endPoints": [
+      {
+        "name": "getCurrentWorker",
+        "baseUrlType": "WORKDAY-COMMON",
+        "url": "/workers/me",
+        "authType": "sso",
+        "bestEffort": true,
+        "exclude": "<% !empty(flowVariables.data.currentWorker) %>"
+      },
+      {
+        "name": "getCurrentWorkerDetails",
+        "baseUrlType": "WORKDAY-WQL",
+        "url": "<% '/data?query=' + ('SELECT worker, workdayAccount, cf_XTNDJobRequisitionsTFWorkerHasManagerSubordinate AS hasManagerSubordinate FROM workersForHCMReporting(dataSourceFilter=allActiveWorkers) WHERE worker = ' + getCurrentWorker.id).urlEncode() %>",
+        "authType": "wcpisu",
+        "bestEffort": true,
+        "exclude": "<% empty(getCurrentWorker.id) %>"
+      },
+      {
+        "name": "getWorkerUnconstrainedAccess",
+        "baseUrlType": "WORKDAY-WQL",
+        "url": "<% '/data?query=' + ('SELECT referenceID AS refId FROM securityGroups WHERE securityGroup IN (Tenant_Security_Group_ID=' + site.appProperties.unconstrainedAccessGroupRefIds.split(',').addAll(site.appProperties.onBehalfAccessGroupRefIds.split(',')).map(x => {'\"' + x + '\"'}).join(',') + ') AND members IN (' + getCurrentWorkerDetails.data[0].workdayAccount.id + ')').urlEncode() %>",
+        "authType": "wcpisu",
+        "bestEffort": true,
+        "exclude": "<% empty(getCurrentWorker.id) %>"
+      },
+      {
+        "name": "getExtendJobRequisition",
+        "baseUrlType": "WORKDAY-ORCHESTRATE",
+        "url": "<% '/GetExtendJobRequisition/launch?id=' + routeParams.id %>",
+        "exclude": "<% empty(routeParams.id) || !empty(flowVariables.data) %>",
+        "authType": "sso"
+      },
+      {
+        "name": "getJobProfileExtraDefaults",
+        "baseUrlType": "WORKDAY-RAAS",
+        "url": "<% '/SCR_XTND_jobRequisitions/XTND_jobRequisitions_Job_Profile_Related_Data?jobProfile!WID=' + getExtendJobRequisition.data[0].data.jobProfile.id %>",
+        "exclude": "<% empty(getExtendJobRequisition.data[0].data.jobProfile.id) %>",
+        "authType": "wcpisu"
+      },
+      {
+        "name": "getPositionDetails",
+        "baseUrlType": "WORKDAY-RAAS",
+        "url": "<% '/SCR_XTND_jobRequisitions/XTND_jobRequisitions_Position_Related_Data?position!WID=' + getExtendJobRequisition.data[0].data.existingPosition.id %>",
+        "exclude": "<% empty(getExtendJobRequisition.data[0].data.existingPosition.id) %>",
+        "authType": "wcpisu"
+      },
+      {
+        "name": "getCustomLists",
+        "baseUrlType": "WORKDAY-WQL",
+        "url": "<% '/data?query=' + ('SELECT workdayID, webServiceAlias AS id, customListValueName AS descriptor, cf_XTNDJobRequisitionsLRVCustomListValueListReferenceID AS customListRefId, cf_CF_EE_FixedTermReasonRationaleHelpText AS helpText, cf_CF_EE_PEC_Default_Triggers AS pecDefaultTriggers, cf_CF_EE_PECEditable AS pecEnabled, cf_CF_EE_WWCC_Default_Triggers AS wwccDefaultTriggers, cf_CF_EE_WWCC_Editable_Triggers AS wwccEditableTriggers, cf_CF_EE_EngagementCategory_Default_Triggers AS engagementCategoryDefaultTriggers, cf_CF_EE_ShiftWorkerDefaultTriggers AS shiftWorkerDefaultTriggers, cf_CF_EE_ShiftWorkerEnabledTriggers AS shiftWorkerEnabledTriggers, cf_CF_EE_ShiftWorkerHiddenTriggers AS shiftWorkerHiddenTriggers FROM allCustomListValues WHERE customList IN (Custom_List_Web_Service_Alias=TACREW_POSITION,AFFIRM_ACTION,WORK_FUN,positionFunction,engagementCategories,preEmploymentCheck,eprShiftWorkerFields,eprMinimumEngagementFields,eprEnterpriseAgreementSchedules,yesNo,SPECIAL_CONDIT,fundingAssignment) AND inactive = FALSE ORDER BY customListValue').urlEncode() %>",
+        "authType": "wcpisu",
+        "exclude": "<% !empty(flowVariables.data.customLists) %>"
+      },
+      {
+        "name": "getCompensationGrades",
+        "baseUrlType": "WORKDAY-WQL",
+        "url": "<% '/data?query=' + ('SELECT compensationGrade, referenceID1 AS refId FROM allCompensationGrades WHERE inactive = FALSE ORDER BY compensationGrade').urlEncode() %>",
+        "authType": "wcpisu"
+      },
+      {
+        "name": "getManagerDetailsDeferred",
+        "baseUrlType": "WORKDAY-WQL",
+        "url": "<%
+          '/data?query=' + ('SELECT workdayID AS id, worker,' +
+            ' cf_XTNDJobRequisitionsEMIAllActiveSupervisoryOrganizationsWithWorkerInLeadershipRole AS allSupOrgs,' +
+            ' cf_XTNDJobRequisitionsEMIWorkerManagedSupOrgsConstrained AS constrainedSupOrgs, position FROM workersForHCMReporting(dataSourceFilter=allActiveWorkers)' +
+            ' WHERE worker = ' + managerId
+          ).urlEncode()
+        %>",
+        "authType": "sso",
+        "deferred": true
+      },
+      {
+        "name": "searchStandardJobProfiles",
+        "baseUrlType": "WORKDAY-WQL",
+        "url": "<% '/data?query=' + Queries.getJobProfileSearch(searchQuery) %>",
+        "authType": "sso",
+        "deferred": true
+      },
+      {
+        "name": "searchManagers",
+        "baseUrlType": "WORKDAY-WQL",
+        "url": "<% '/data?query=' + Queries.getManagerSearch(instanceListQuery) %>",
+        "authType": "sso",
+        "deferred": true
+      },
+      {
+        "name": "getSupOrgDetailsDeferred",
+        "baseUrlType": "WORKDAY-WQL",
+        "url": "<% '/data?query=' + Queries.getSupOrgDetails(supOrgId) %>",
+        "authType": "sso",
+        "deferred": true
+      },
+      {
+        "name": "getJobProfileExtraDefaultsDeferred",
+        "baseUrlType": "WORKDAY-RAAS",
+        "url": "<% '/SCR_XTND_jobRequisitions/XTND_jobRequisitions_Job_Profile_Related_Data?jobProfile!WID=' + jobProfileId %>",
+        "authType": "wcpisu",
+        "deferred": true
+      },
+      {
+        "name": "getPositionDetailsDeferred",
+        "baseUrlType": "WORKDAY-RAAS",
+        "url": "<% '/SCR_XTND_jobRequisitions/XTND_jobRequisitions_Position_Related_Data?position!WID=' + positionId %>",
+        "authType": "wcpisu",
+        "deferred": true
+      },
+      {
+        "name": "getNewJobReqIdDeferred",
+        "baseUrlType": "WORKDAY-ORCHESTRATE",
+        "url": "/GetNewJobReqId/launch",
+        "authType": "wcpisu",
+        "deferred": true
+      },
+      {
+        "name": "getJobReqClosedDate",
+        "baseUrlType": "WORKDAY-WQL",
+        "url": "<% var query = 'SELECT jobRequisition, position, jobRequisitionStatus, closeDate FROM jobRequisitions_Indexed WHERE position in ' + existPositionID
+                         return '/data?query=' + query.urlEncode() %>",
+        "authType": "wcpisu",
+        "deferred": true
+      }
+    ],
+    "outboundData": {
+      "outboundEndPoints": [
+        {
+          "name": "postExtendJobRequisition",
+          "exclude": "<% !saveForLaterBtn.value || !empty(pageVariables.id) %>",
+          "baseUrlType": "WORKDAY-APP",
+          "url": "/extendJobRequisitions",
+          "httpMethod": "POST",
+          "authType": "sso",
+          "onSend": "<% {'initiator': {'id': pageVariables.data.currentWorker.id}, 'isDraft': true}.addAll(pageVariables.requests.main) %>",
+          "failOnStatusCodes": [
+            {
+              "code": 400
+            },
+            {
+              "code": 401
+            },
+            {
+              "code": 403
+            },
+            {
+              "code": 404
+            }
+          ]
+        },
+        {
+          "name": "postExtendJobRequisitionData",
+          "exclude": "<% empty(postExtendJobRequisition.id) %>",
+          "baseUrlType": "WORKDAY-APP",
+          "url": "/extendJobRequisitionData",
+          "httpMethod": "POST",
+          "authType": "sso",
+          "onSend": "<% {'jobRequisition': {'id': postExtendJobRequisition.id}}.addAll(pageVariables.requests.data) %>",
+          "failOnStatusCodes": [
+            {
+              "code": 400
+            },
+            {
+              "code": 401
+            },
+            {
+              "code": 403
+            },
+            {
+              "code": 404
+            }
+          ]
+        },
+        {
+          "name": "postExtendJobRequisitionAdditionalData",
+          "exclude": "<% empty(postExtendJobRequisition.id) %>",
+          "baseUrlType": "WORKDAY-APP",
+          "url": "/extendJobRequisitionAdditionalData",
+          "httpMethod": "POST",
+          "authType": "sso",
+          "onSend": "<% {'jobRequisition': {'id': postExtendJobRequisition.id}}.addAll(pageVariables.requests.additionalData) %>",
+          "failOnStatusCodes": [
+            {
+              "code": 400
+            },
+            {
+              "code": 401
+            },
+            {
+              "code": 403
+            },
+            {
+              "code": 404
+            }
+          ]
+        },
+        {
+          "name": "postExtendJobRequisitionQuestionnaire",
+          "exclude": "<% empty(postExtendJobRequisition.id) %>",
+          "baseUrlType": "WORKDAY-APP",
+          "url": "/extendJobRequisitionQuestionnaires",
+          "httpMethod": "POST",
+          "authType": "sso",
+          "onSend": "<% {'jobRequisition': {'id': postExtendJobRequisition.id}}.addAll(pageVariables.requests.questionnaire) %>",
+          "failOnStatusCodes": [
+            {
+              "code": 400
+            },
+            {
+              "code": 401
+            },
+            {
+              "code": 403
+            },
+            {
+              "code": 404
+            }
+          ]
+        },
+        {
+          "name": "patchExtendJobRequisitionCreate",
+          "exclude": "<% empty(postExtendJobRequisition.id) %>",
+          "baseUrlType": "WORKDAY-APP",
+          "url": "<% '/extendJobRequisitions/' + postExtendJobRequisition.id %>",
+          "httpMethod": "PATCH",
+          "authType": "sso",
+          "onSend": "<%
+            {
+              'questionnaire': {'id': postExtendJobRequisitionQuestionnaire.id},
+              'additionalData': {'id': postExtendJobRequisitionAdditionalData.id},
+              'data': {'id': postExtendJobRequisitionData.id}
+            }
+          %>",
+          "failOnStatusCodes": [
+            {
+              "code": 400
+            },
+            {
+              "code": 401
+            },
+            {
+              "code": 403
+            },
+            {
+              "code": 404
+            }
+          ]
+        },
+        {
+          "name": "postCreateJobRequisitionEventBP",
+          "exclude": "<% empty(postExtendJobRequisition.id) %>",
+          "baseUrlType": "WORKDAY-APP",
+          "url": "/createJobRequisitionEvents",
+          "httpMethod": "POST",
+          "authType": "sso",
+          "onSend": "<% {'businessProcessTarget': {'id': postExtendJobRequisition.id}} %>",
+          "failOnStatusCodes": [
+            {
+              "code": 400
+            },
+            {
+              "code": 401
+            },
+            {
+              "code": 403
+            },
+            {
+              "code": 404
+            }
+          ]
+        },
+        {
+          "name": "patchExtendJobRequisition",
+          "exclude": "<% !saveForLaterBtn.value || empty(pageVariables.id) %>",
+          "baseUrlType": "WORKDAY-APP",
+          "url": "<% '/extendJobRequisitions/' + pageVariables.id %>",
+          "httpMethod": "PATCH",
+          "authType": "sso",
+          "onSend": "<% pageVariables.requests.main %>",
+          "failOnStatusCodes": [
+            {
+              "code": 400
+            },
+            {
+              "code": 401
+            },
+            {
+              "code": 403
+            },
+            {
+              "code": 404
+            }
+          ]
+        },
+        {
+          "name": "patchExtendJobRequisitionData",
+          "exclude": "<% !saveForLaterBtn.value || empty(pageVariables.id) %>",
+          "baseUrlType": "WORKDAY-APP",
+          "url": "<% '/extendJobRequisitionData/' + pageVariables.dataId %>",
+          "httpMethod": "PATCH",
+          "authType": "sso",
+          "onSend": "<% pageVariables.requests.data %>",
+          "failOnStatusCodes": [
+            {
+              "code": 400
+            },
+            {
+              "code": 401
+            },
+            {
+              "code": 403
+            },
+            {
+              "code": 404
+            }
+          ]
+        },
+        {
+          "name": "patchExtendJobRequisitionAdditionalData",
+          "exclude": "<% !saveForLaterBtn.value || empty(pageVariables.id) %>",
+          "baseUrlType": "WORKDAY-APP",
+          "url": "<% '/extendJobRequisitionAdditionalData/' + pageVariables.additionalDataId %>",
+          "httpMethod": "PATCH",
+          "authType": "sso",
+          "onSend": "<% pageVariables.requests.additionalData %>",
+          "failOnStatusCodes": [
+            {
+              "code": 400
+            },
+            {
+              "code": 401
+            },
+            {
+              "code": 403
+            },
+            {
+              "code": 404
+            }
+          ]
+        },
+        {
+          "name": "patchExtendJobRequisitionQuestionnaire",
+          "exclude": "<% !saveForLaterBtn.value || empty(pageVariables.id) %>",
+          "baseUrlType": "WORKDAY-APP",
+          "url": "<% '/extendJobRequisitionQuestionnaires/' + pageVariables.questionnaireId %>",
+          "httpMethod": "PATCH",
+          "authType": "sso",
+          "onSend": "<% pageVariables.requests.questionnaire %>",
+          "failOnStatusCodes": [
+            {
+              "code": 400
+            },
+            {
+              "code": 401
+            },
+            {
+              "code": 403
+            },
+            {
+              "code": 404
+            }
+          ]
+        },
+        {
+          "name": "patchAttachments",
+          "baseUrlType": "WORKDAY-ORCHESTRATE",
+          "url": "/BulkPatchAttachments/launch",
+          "httpMethod": "POST",
+          "authType": "sso",
+          "exclude": "<% !saveForLaterBtn.value %>",
+          "onSend": "<%
+            {
+              'jobRequisitionId': postExtendJobRequisition.id ?? (flowVariables.id ?? ''),
+              'attachments': flowVariables.data.attachments ?? [],
+              'attachmentsPendingDelete': flowVariables.data.attachmentsPendingDelete ?? []
+            }
+          %>",
+          "failOnStatusCodes": [
+            {
+              "code": 400
+            },
+            {
+              "code": 401
+            },
+            {
+              "code": 403
+            },
+            {
+              "code": 404
+            }
+          ]
+        },
+        {
+          "name": "postSaveForLaterNotificationEventBP",
+          "baseUrlType": "WORKDAY-APP",
+          "url": "/deliverJobRequisitionNotificationsEvents",
+          "httpMethod": "POST",
+          "authType": "wcpisu",
+          "exclude": "<% !saveForLaterBtn.value %>",
+          "onSend": "<% {'businessProcessTarget': {'id': postExtendJobRequisition.id ?? pageVariables.id}} %>",
+          "failOnStatusCodes": [
+            {
+              "code": 400
+            },
+            {
+              "code": 401
+            },
+            {
+              "code": 403
+            },
+            {
+              "code": 404
+            }
+          ]
+        },
+        {
+          "type": "outboundVariable",
+          "name": "outboundFlowVars",
+          "variableScope": "flow",
+          "values": [
+            {
+              "outboundPath": "id",
+              "value": "<% pageVariables.id %>"
+            },
+            {
+              "outboundPath": "dataId",
+              "value": "<% pageVariables.dataId %>"
+            },
+            {
+              "outboundPath": "additionalDataId",
+              "value": "<% pageVariables.additionalDataId %>"
+            },
+            {
+              "outboundPath": "questionnaireId",
+              "value": "<% pageVariables.questionnaireId %>"
+            },
+            {
+              "outboundPath": "aonPageVisible",
+              "value": "<% Values.isRecruitingInstruction('aon', recruitingInstruction) %>"
+            },
+            {
+              "outboundPath": "knownCandidatePageVisible",
+              "value": "<% Values.isRecruitingInstruction('professionalCasualCandidateKnown', recruitingInstruction) %>"
+            },
+            {
+              "outboundPath": "saveForLaterBtn",
+              "value": "<% saveForLaterBtn.value %>"
+            },
+            {
+              "outboundPath": "nextBtn",
+              "value": "<% nextBtn.value %>"
+            },
+            {
+              "outboundPath": "data",
+              "value": "<% pageVariables.data %>"
+            }
+          ]
+        }
+      ],
+      "responseErrorDetail": {
+        "errorSummary": "<% !empty(error) ? error : '' %>",
+        "errors": "<% Common.formatErrors(errors) %>"
+      }
+    },
+    "include": [
+      "Common.script",
+      "Values.script",
+      "Queries.script",
+      "Mapping.script",
+      "Dates.script"
+    ],
+    "script": "<%
+  
+      
+      var setVisible = function(widget, visible) {
+        if(widget.visible != visible) widget.visible = visible;
+      }
+  
+      var setPageError = function(message) {
+        setVisible(pageErrorHolder, !empty(message));
+        if(empty(message)) {
+          pageErrorHolder.clearError();
+        } else {
+          pageErrorHolder.setError(message);
+        }
+      }
+  
+  
+    var setHireDate = function() {
+      var isExisting = isExistingPosition.value ?? '';
+      var isDate;
+      if(isExisting.contains('yes')) {
+        isDate = Dates.getDateFormatted(Dates.getDateRelativeTo(Dates.getDateTodayFormatted(Dates.getAustraliaTimeZoneString()), 1));
+      } else {
+        isDate = Dates.getDateTodayFormatted(Dates.getAustraliaTimeZoneString());
+      }
+      console.info('the Date is   :   '  + pageVariables.data.targetHireDate ?? isDate);
+      return isDate;
+    }
+  
+      var validateDateIsTomorrow = function() {
+        targetHireDate.clearError();
+        
+        var isExisting = isExistingPosition.value ?? '';
+        console.info('validate date is existing position  ' +isExisting);
+        if(isExisting.contains('yes')) {
+          var positionId = existingPosition.value ?? '';
+          console.info('existing position workday id is '  +positionId);
+          var response = getJobReqClosedDate.invoke({'existPositionID' : positionId[0]});
+          console.info('closing job req details  '  + response)
+          var closedDate = response.data[0].closeDate ?? Dates.getDateTodayFormatted(Dates.getAustraliaTimeZoneString());
+  
+            var closedDatePlusOne = Dates.getDateFormatted(Dates.getDateRelativeTo(closedDate, 1));
+            var errorDate = Dates.getDateNLFormatted(closedDatePlusOne);
+  
+            var date = targetHireDate.value;
+            
+            var errorMsg = 'Select a Proposed Contract Start Date that is on or after ' + errorDate + '. The Proposed Contract Start Date cannot be before the last job requisition close date.'
+            if((closedDatePlusOne < date)) {
+              targetHireDate.setError(errorMsg);
+            }      
+        } else {
+          console.info('outer else called');
+        }
+      }
+  
+      var getSelectedJobCategoryRefId = function() {
+        return jobCategory.visible ? Common.getId(jobCategory) : (pageVariables.data.jobCategoryRefId ?? '');
+      }
+  
+      var getSelectedJobCategoryInternalId = function() {
+        return Values.getJobCategoryInternalId(getSelectedJobCategoryRefId());
+      }
+  
+      var getTargetHireDate = function() {
+        return Dates.getDateFormatted(targetHireDate.visible ?
+          (Common.getValue(targetHireDate) ?: Dates.getDateFormatted(Dates.getDateRelativeTo(Dates.getDateTodayFormatted(Dates.getAustraliaTimeZoneString()), 1))) :
+          (pageVariables.data.targetHireDate ?? Dates.getDateFormatted(Dates.getDateRelativeTo(Dates.getDateTodayFormatted(Dates.getAustraliaTimeZoneString()), 1)))
+        );
+      }
+  
+      var getTargetEndDate = function() {
+        if(targetEndDate.visible) return !empty(targetEndDate.value) ? Dates.getDateFormatted(targetEndDate.value) : '';
+        if(!durationYears.visible) {
+          if(Values.isRecruitingInstruction(['aon', 'professionalCasualCandidateKnown'], recruitingInstruction)) {
+            return pageVariables.data.targetEndDate ?? ''; // we use the saved value since it can be set on e.g. AON page (d)
+          }
+          return ''; // hardcoded end date for continuing positions etc
+        }
+  
+        let startDate = Dates.getDate(getTargetHireDate());
+        let years = !empty(Common.getId(durationYears)) ? Common.getId(durationYears).toInt() : 0;
+        let months = !empty(Common.getId(durationMonths)) ? Common.getId(durationMonths).toInt() : 0;
+        return Dates.getDateFormatted(Dates.getNonWeekendDate(startDate.plusYears(years).plusMonths(months)));
+      }
+  
+      var getSavedDuration = function() {
+        // note this function loads from the BO/flow, not live from the widget
+        let startDate = Dates.getDate(pageVariables.data.targetHireDate ?? Dates.getDateToday(Dates.getAustraliaTimeZoneString()));
+        let endDate = Dates.getDate(pageVariables.data.targetEndDate ?? '');
+        if(empty(endDate)) return null;
+  
+        let years = startDate.between(endDate, 'YEAR');
+        let months = startDate.between(endDate, 'MONTH') - (years * 12);
+        return [years, months];
+      }
+  
+      var getReasons = function() {
+        return Values.getReasons(isExistingPosition, workerSubType, isCandidateKnown);
+      }
+  
+      var getAllCompensationGrades = function() {
+        return getCompensationGrades.data.map(x => {{'id': x.refId, 'descriptor': x.compensationGrade.descriptor}});
+      }
+  
+      var getAllowedCompensationGrades = function() {
+        if(empty(getSelectedJobCategoryInternalId())) return [];
+  
+        let isAcademic = getSelectedJobCategoryInternalId() == 'academic';
+        return getAllCompensationGrades().filter(x => {x.descriptor.containsIgnoreCase('academic') == isAcademic}) ?? [];
+      }
+  
+      var validateContractDates = function() {
+        durationMonths.clearError();
+        targetEndDate.clearError();
+        if(targetEndDate.visible && !empty(targetEndDate.value) && Dates.getDate(targetEndDate.value) < Dates.getDate(targetHireDate.value ?? Dates.getDateToday(Dates.getAustraliaTimeZoneString()))) {
+          targetEndDate.setError('The contract end date must be on or after the contract start date.');
+        }
+        //var startDate = targetHireDate.value ?? ''
+        if(empty(targetHireDate.value))
+        {
+          validateDateIsTomorrow();
+        }
+      }
+  
+      var validateJobProfileSearch = function() {
+        jobProfileSearch.clearError();
+        if(!empty(Common.getValue(jobProfileSearch)) && !validate:match('[a-zA-Z/, ]*', Common.getValue(jobProfileSearch))) {
+          jobProfileSearch.setError('Special characters are not permitted.');
+        }
+      }
+  
+      var validateIsWithinBudget = function() {
+        isWithinBudget.clearError();
+        if(Common.getId(isWithinBudget) == 'no') {
+          isWithinBudget.setError('As this hire does not fall within the budget allocation for casual labour, please confirm with Finance before you can proceed');
+        }
+      }
+  
+      var updateAllowedCompGrades = function() {
+        let currentCompensationGrades = Common.getIds(compensationGrade);
+        compensationGrade.setValues(getAllowedCompensationGrades());
+        compensationGrade.setValue(currentCompensationGrades); // keep the current comp grade selected if it is still available
+      }
+  
+      var updateVisibility = function() {
+        setPageError(null);
+        setVisible(existingPosition, Common.getId(isExistingPosition) == 'yes');
+        if(!empty(Common.getId(existingPosition))) existingPositionLink.url = '/' + tenant + '/d/wid/' + Common.getId(existingPosition) + '.htmld';
+        setVisible(existingPositionLink, !empty(Common.getId(existingPosition)));
+        setVisible(replacementFor, !empty(Common.getId(existingPosition)));
+        setVisible(numberOfPositions, Common.getId(isExistingPosition) == 'no');
+        setVisible(isCopyingFromPosition, Common.getId(isExistingPosition) == 'no');
+        setVisible(copyFromPosition, Common.getValue(isCopyingFromPosition) ?: false);
+        workerType.value = Values.getWorkerTypeDescriptor(Common.getId(workerSubType));
+        setVisible(workerType, !empty(workerType.value));
+        setVisible(isShortTermCasual, Values.isWorkerSubType('casual', workerSubType));
+        setVisible(isShortTermCasualHelpText, Values.isWorkerSubType('casual', workerSubType));
+        setVisible(isJobProfileKnown, Common.getId(isExistingPosition) != 'yes' && !(isCopyingFromPosition.value ?? false));
+        let isJobProfileVisible = Common.getId(isJobProfileKnown) == 'yes' || !isJobProfileKnown.visible;
+        setVisible(jobProfile, isJobProfileVisible);
+        setVisible(jobProfileHelpText, isJobProfileVisible);
+        if(!empty(Common.getId(jobProfile))) jobProfileLink.url = '/' + tenant + '/d/wid/' + Common.getId(jobProfile) + '.htmld';
+        setVisible(jobProfileLink, !empty(Common.getId(jobProfile)));
+        let isJobProfileSearchVisible = Common.getId(isJobProfileKnown) == 'no' && isJobProfileKnown.visible;
+        setVisible(jobCategory, isJobProfileSearchVisible);
+        let currentJobCategory = Common.getId(jobCategory);
+        jobCategory.setValue([currentJobCategory]); // fix for dynamic visibility clearing value in the UI even though the value still is set
+        setVisible(compensationGrade, isJobProfileSearchVisible);
+        setVisible(jobProfileSearch, isJobProfileSearchVisible);
+        setVisible(jobProfileSearchHelpText, isJobProfileSearchVisible);
+        let isCandidateKnownVisible = !Values.isWorkerType('CW', workerSubType);
+        setVisible(isCandidateKnown, isCandidateKnownVisible);
+        setVisible(fixedTermReason, Values.isWorkerSubType('fixedTerm', workerSubType));
+        setVisible(fixedTermRationaleReason, Values.isWorkerSubType('fixedTerm', workerSubType));
+        let fixedTermReasonRefId = Common.getId(fixedTermReason);
+        let fixedTermRationaleReasonHelpTextContent = pageVariables.data.customLists.find(x => {x.id == fixedTermReasonRefId}).helpText ?? '';
+        setVisible(fixedTermRationaleReasonHelpText, !empty(fixedTermRationaleReasonHelpTextContent));
+        fixedTermRationaleReasonHelpText.value = '<span style=\\'color: #0000FF\\'><i>' + fixedTermRationaleReasonHelpTextContent + '</i></span>';
+        let currentReason = Common.getId(reason);
+        reason.setValues(getReasons());
+        reason.setValue([currentReason]); // keep the current reason selected if it is still available
+        setVisible(targetHireDate, !(pageVariables.data.isManagerView ?? false) && !Values.isRecruitingInstruction(['aon', 'professionalCasualCandidateKnown'], recruitingInstruction));
+        let isDurationVisible = Common.getId(isExistingPosition) == 'no' && (
+          Values.isWorkerSubType('fixedTerm', workerSubType)
+        );
+        setVisible(durationLabel, isDurationVisible);
+        setVisible(durationYears, isDurationVisible);
+        setVisible(durationYearsLabel, isDurationVisible);
+        setVisible(durationMonths, isDurationVisible);
+        setVisible(durationMonthsLabel, isDurationVisible);
+        setVisible(targetEndDate, (Common.getId(isExistingPosition) == 'yes' && !Values.isRecruitingInstruction(['aon', 'professionalCasualCandidateKnown'], recruitingInstruction)) || Values.isRecruitingInstruction(['professionalCasualRecruitmentRequired', 'cw'], recruitingInstruction));
+        timeType.enabled = !Values.isWorkerSubType('casual', pageVariables.data.workerSubTypeRefId);
+        setVisible(isWithinBudget, getSelectedJobCategoryInternalId() == 'professional' && Values.isWorkerSubType('casual', workerSubType) && Common.getId(isCandidateKnown) == 'yes');
+        validateIsWithinBudget();
+        setVisible(substantivePositionRefId, !(pageVariables.data.isManagerView ?? false) && !empty(substantivePositionRefId.value));
+        justification.required = Values.isRecruitingInstruction('aon', recruitingInstruction);
+        validateContractDates();
+      }
+  
+      var validateCompGradeSearch = function() {
+        compensationGrade.clearError();
+        if(compensationGrade.value.size() > 3) {
+          compensationGrade.setError('You can select a maximum of 3 compensation grades');
+        }
+      }
+  
+      var redefaultRecruitingInstruction = function() {
+        updateVisibility(); // ensures reason is still valid first
+        let newDefault = Values.getDefaultRecruitingInstruction(workerSubType, isCandidateKnown, getSelectedJobCategoryInternalId(), reason);
+        recruitingInstruction.setValue(!empty(newDefault) ? [newDefault.id] : []);
+      }
+  
+      var getExistingPositionId = function() {
+        var isExisting = isExistingPosition.value ?? '';
+        console.info('Existing job req   ' + isExisting);
+        if(isExisting == 'yes') {
+          var positionId = existingPosition.value ?? '';
+          console.info('existing position workday id is '  +positionId);
+          var response = getJobReqClosedDate.invoke({'existPositionID' : positionId[0]});
+          console.info('closing job req details  '  + response)
+          var closedDate = response.data[0].closeDate ?? Dates.getDateFormatted(Dates.getDateTodayFormatted(Dates.getAustraliaTimeZoneString()));
+          var closedDatePlusOne = Dates.getDateFormatted(Dates.getDateRelativeTo(closedDate, 1));
+  
+          pageVariables.data.targetHireDate = closedDatePlusOne ?? closedDate ;
+  
+          console.info('closing date is  '  + closedDatePlusOne);
+          return closedDatePlusOne;
+        }
+      }
+  
+      var updateFlowMapping = function() {
+        updateVisibility(); // ensure correct fields are visible so flow mapping will pick them up
+        let selectedJobProfileId = Common.getId(jobProfile);
+  
+        let pageValues = {
+          'manager': !empty(manager) && !empty(Common.getEntry(manager)) ? Common.getEntry(manager) : !empty(pageVariables.data.currentWorker) ? {'id': pageVariables.data.currentWorker.id, 'descriptor': pageVariables.data.currentWorker.descriptor} : null,
+          'supOrg': Common.getEntry(supOrg),
+          'isExistingPositionId': Common.getId(isExistingPosition),
+          'existingPosition': Common.getEntry(existingPosition),
+          'copyFromPosition': Common.getEntry(copyFromPosition),
+          'numberOfPositions': Common.getValue(numberOfPositions) ?: 0,
+          'workerSubTypeRefId': Common.getId(workerSubType),
+          'isJobProfileKnownId': Common.getId(isJobProfileKnown),
+          'jobProfile': Common.getEntry(jobProfile),
+          'jobCategorySearchRefId': Common.getId(jobCategory),
+          'compensationGradeSearchRefIds': Common.getIds(compensationGrade),
+          'jobProfileSearch': Common.getValue(jobProfileSearch),
+          'isCandidateKnownId': Common.getId(isCandidateKnown),
+          'fixedTermReasonRefId': Common.getId(fixedTermReason),
+          'fixedTermRationaleReason': Common.getValue(fixedTermRationaleReason),
+          'reasonRefId': Common.getId(reason),
+          'targetHireDate': getTargetHireDate(),
+          'targetEndDate': getTargetEndDate(),
+          'timeTypeRefId': Common.getId(timeType),
+          'recruitingInstructionsRefId': Common.getId(recruitingInstruction),
+          'isWithinBudgetId': Common.getId(isWithinBudget),
+          'justification': Common.getValue(justification),
+          'isShortTermCasual': Common.getId(isShortTermCasual)
+        };
+        if((saveForLaterBtn.value ?? false) && empty(pageVariables.data.jobReqId)) {
+          pageValues.jobReqId = getNewJobReqIdDeferred.invoke().id ?? '';
+        }
+        Mapping.toFlow(pageValues, pageVariables, {
+          'getManagerDetailsDeferred': getManagerDetailsDeferred,
+          'jobProfileExtraDeferred': getJobProfileExtraDefaultsDeferred,
+          'getSupOrgDetailsDeferred': getSupOrgDetailsDeferred,
+          'getPositionDetailsDeferred': getPositionDetailsDeferred
+        });
+        pageVariables.requests = Mapping.toBOs(pageVariables);
+        if(!empty(manager)) {
+          if(!manager.updated){
+            manager.setValues(list:nonNull([pageVariables.data.manager ?? null]));
+            manager.setValue([pageVariables.data.manager.id ?? '']);
+          }
+        }
+        supOrg.setValues(pageVariables.data.managerSupOrgs ?? []);
+        supOrg.setValue([pageVariables.data.supOrg.id ?? '']);
+        workerSubType.value = [pageVariables.data.workerSubTypeRefId ?? ''];
+        existingPosition.setValues(pageVariables.data.availablePositions ?? []);
+        existingPosition.setValue([pageVariables.data.existingPosition.id ?? '']);
+        copyFromPosition.setValues(pageVariables.data.allPositions ?? []);
+        copyFromPosition.setValue([pageVariables.data.copyFromPosition.id ?? '']);
+        replacementFor.value = pageVariables.data.replacementFor.descriptor ?? '';
+        jobProfile.setValues(list:nonNull([pageVariables.data.jobProfile ?? null]));
+        jobProfile.value = [pageVariables.data.jobProfile.id ?? ''];
+        targetEndDate.value = Dates.getDate(pageVariables.data.targetEndDate ?? '');
+        timeType.value = [pageVariables.data.timeTypeRefId ?? ''];
+        fixedTermReason.value = [pageVariables.data.fixedTermReasonRefId ?? ''];
+        fixedTermRationaleReason.value = pageVariables.data.fixedTermRationaleReason ?? '';
+        substantivePositionRefId.value = pageVariables.data.substantivePositionRefId ?? '';
+  
+        getExistingPositionId();
+        setHireDate();
+        updateVisibility(); // now the flow mapping is applied there may be some read only values that need updated
+      }
+    %>",
+    "onLoad": "<%
+    console.info('closing job req details   ' +getJobReqClosedDate);
+      pageVariables.id = routeParams.id ?? (flowVariables.id ?? null);
+      pageVariables.dataId = getExtendJobRequisition.data[0].data.id ?? (flowVariables.dataId ?? null);
+      pageVariables.additionalDataId = getExtendJobRequisition.data[0].additionalData.id ?? (flowVariables.additionalDataId ?? null);
+      pageVariables.questionnaireId = getExtendJobRequisition.data[0].questionnaire.id ?? (flowVariables.questionnaireId ?? null);
+      pageVariables.data = flowVariables.data ?? Mapping.fromBOs(getExtendJobRequisition ?? null, site.appProperties, {
+        'currentWorker': getCurrentWorker ?? null,
+        'currentWorkerDetails': getCurrentWorkerDetails ?? null,
+        'currentWorkerUnconstrainedAccess': getWorkerUnconstrainedAccess ?? null,
+        'customLists': getCustomLists ?? null,
+        'jobProfileExtra': getJobProfileExtraDefaults ?? null,
+        'positionDetails': getPositionDetails ?? null
+      });
+      
+    %>",
+    "onSubmit": "<%
+      updateFlowMapping();
+      durationMonths.clearError();
+      targetEndDate.clearError();
+      jobProfileSearch.clearError();
+      compensationGrade.clearError();
+      isWithinBudget.clearError();
+      fixedTermRationaleReason.clearError();
+      setPageError(null);
+      if(nextBtn.value) {
+        Common.validateMaxLength(fixedTermRationaleReason, 255);
+        validateContractDates();
+        validateJobProfileSearch();
+        validateCompGradeSearch();
+        validateIsWithinBudget();
+        if(durationMonths.visible && empty(Common.getId(durationYears).toInt()) && empty(Common.getId(durationMonths).toInt())) {
+          durationMonths.setError('The contract duration is required.');
+        }
+      }
+    %>",
+    "presentation": {
+      "title": {
+        "type": "title",
+        "label": "Create Job Requisition – Step 1: Job Requisition Initiation"
+      },
+      "body": {
+        "type": "section",
+        "children": [
+          {
+            "type": "section",
+            "horizontal": true,
+            "columnWidthRatios": [
+              0.3,
+              0.7
+            ],
+            "children": [
+              {
+                "type": "pod",
+                "podId": "navigation",
+                "parameters": {
+                  "stepNumber": "1"
+                }
+              },
+              {
+                "type": "fieldSet",
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "pageErrorHolder",
+                    "enabled": false,
+                    "visible": false
+                  },
+                  {
+                    "type": "instanceList",
+                    "id": "manager",
+                    "label": "Which Hiring Manager are you acting on behalf of?",
+                    "values": "<% [] %>",
+                    "selectedValuesAndDescriptors": "<% list:nonNull([pageVariables.data.manager ?? null]) %>",
+                    "searchEndPoint": "<% endpoints.searchManagers %>",
+                    "searchResultValues": "<% searchManagers.data.map(x => {x.worker}) ?? [] %>",
+                    "required": true,
+                    "render": "<% pageVariables.data.currentWorker.hasOnBehalfAccess ?? false %>",
+                    "onChange": "<% updateFlowMapping() %>",
+                    "guide": {
+                      "type": "guide",
+                      "id": "managerGuide",
+                      "text": "If you are unable to locate the hiring manager’s name under the drop-down list or if you are unsure which value to select as the hiring manager has multiple supervisory organizations they are managing, please contact the Shared Services Centre for assistance.
+  • Phone
+  +61 2 9351 2000
+  • Email
+  hr.servicecentre@sydney.edu.au"
+                    }
+                  },
+                  {
+                    "type": "instanceList",
+                    "id": "supOrg",
+                    "label": "Supervisory Organization",
+                    "values": "<% [] %>",
+                    "selectedValuesAndDescriptors": "<% list:nonNull([pageVariables.data.supOrg ?? null]) %>",
+                    "onChange": "<% updateFlowMapping() %>",
+                    "required": true
+                  },
+                  {
+                    "type": "fieldSet",
+                    "title": "New or Existing Position?",
+                    "children": [
+                      {
+                        "type": "radioGroup",
+                        "id": "isExistingPosition",
+                        "label": "Do you have an existing available position you want to recruit into?",
+                        "required": true,
+                        "guide": {
+                          "type": "guide",
+                          "id": "isExistingPositionGuide",
+                          "text": "If you are creating a job requisition to back-fill a staff member on secondment or extended leave or to fill an existing position that is vacant or soon to be vacant, select “Yes, use existing Position”. Please only select “No, I’ll need to create a new Position”  if you are creating a brand new position in the relevant supervisory organisation."
+                        },
+                        "instanceList": [
+                          {
+                            "id": "yes",
+                            "descriptor": "Yes, use existing Position"
+                          },
+                          {
+                            "id": "no",
+                            "descriptor": "No, I'll need to create a new Position"
+                          }
+                        ],
+                        "selectedValues": "<% [pageVariables.data.isExistingPositionId ?? ''] %>",
+                        "onChange": "<% updateFlowMapping() %>"
+                      },
+                      {
+                        "type": "instanceList",
+                        "id": "existingPosition",
+                        "label": "Position",
+                        "values": "<% [] %>",
+                        "selectedValuesAndDescriptors": "<% list:nonNull([pageVariables.data.existingPosition ?? null]) %>",
+                        "onChange": "<% updateFlowMapping() %>",
+                        "required": true,
+                        "visible": false
+                      },
+                      {
+                        "type": "externalLink",
+                        "id": "existingPositionLink",
+                        "descriptor": "View Position",
+                        "visible": false
+                      },
+                      {
+                        "type": "text",
+                        "id": "replacementFor",
+                        "label": "Replacement For",
+                        "enabled": false,
+                        "visible": false
+                      },
+                      {
+                        "type": "number",
+                        "id": "numberOfPositions",
+                        "label": "How many Positions do you want to create?",
+                        "value": "<% pageVariables.data.numberOfPositions ?? 1 %>",
+                        "maximumValue": 100,
+                        "required": true,
+                        "visible": false
+                      },
+                      {
+                        "type": "checkBox",
+                        "id": "isCopyingFromPosition",
+                        "label": "For your new Position(s), do you want to copy details from an existing Position?",
+                        "value": "<% !empty(pageVariables.data.copyFromPosition) %>",
+                        "visible": false,
+                        "onChange": "<% updateFlowMapping() %>"
+                      },
+                      {
+                        "type": "instanceList",
+                        "id": "copyFromPosition",
+                        "label": "Copy from Existing Position",
+                        "values": "<% [] %>",
+                        "selectedValuesAndDescriptors": "<% list:nonNull([pageVariables.data.copyFromPosition ?? null]) %>",
+                        "onChange": "<% updateFlowMapping() %>",
+                        "required": true,
+                        "visible": false
+                      }
+                    ]
+                  },
+                  {
+                    "type": "fieldSet",
+                    "title": "Job Profile",
+                    "horizontal": true,
+                    "children": [
+                      {
+                        "enabled": false,
+                        "type": "richText",
+                        "value": "<p style=\"font-family: Roboto; font-size: 14px; color: #fc0339;\"><b><i>This field determines the broad type and level of the role (SJP) not the Position Description which is determined on Screen 3. For existing positions, you do not need to change this field</b></i></span>"
+                      },
+                      {
+                        "type": "fieldSet",
+                        "children": [
+                          {
+                            "type": "dropdown",
+                            "id": "workerSubType",
+                            "label": "What type of role are you hiring for?",
+                            "values": "<% Values.getAllWorkerSubTypes() %>",
+                            "selectedValues": "<% [pageVariables.data.workerSubTypeRefId ?? ''] %>",
+                            "required": true,
+                            "onChange": "<%
+                              redefaultRecruitingInstruction();
+                              updateFlowMapping();
+                            %>"
+                          },
+                          {
+                            "type": "text",
+                            "id": "workerType",
+                            "label": "Worker Type",
+                            "enabled": false,
+                            "visible": false
+                          },
+                          {
+                            "type": "radioGroup",
+                            "id": "isShortTermCasual",
+                            "label": "Is this a limited-work casual?",
+                            "selectedValues": "<%  [pageVariables.data.isShortTermCasual ?: 'no'] %>",
+                            "visible": false,
+                            "required": true,
+                            "instanceList": [
+                              {
+                                "id": "yes",
+                                "descriptor": "Yes"
+                              },
+                              {
+                                "id": "no",
+                                "descriptor": "No"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "id": "isShortTermCasualHelpText",
+                            "value": "A limited-work casual will work less than 30 hours over the life of their contract",
+                            "enabled": false,
+                            "visible": false
+                          },
+                          {
+                            "type": "radioGroup",
+                            "id": "isJobProfileKnown",
+                            "label": "Do you know the job profile?",
+                            "required": true,
+                            "instanceList": [
+                              {
+                                "id": "yes",
+                                "descriptor": "I know the Job Profile I want to use"
+                              },
+                              {
+                                "id": "no",
+                                "descriptor": "Help me find the correct Job Profile"
+                              }
+                            ],
+                            "selectedValues": "<% [pageVariables.data.isJobProfileKnownId ?? ''] %>",
+                            "onChange": "<%
+                              redefaultRecruitingInstruction();
+                              updateVisibility();
+                            %>",
+                            "guide": {
+                              "type": "guide",
+                              "id": "jobProfileGuide",
+                              "text": "Refer to the Standard Job Profile report for more details",
+                              "linkText": "Find Standard Job Profile",
+                              "linkUrl": "https://wd3.myworkday.com/usyd/d/task/1422$2134.htmld"
+                            }
+                          },
+                          {
+                            "type": "instanceList",
+                            "id": "jobProfile",
+                            "label": "Job Profile",
+                            "values": "<% [] %>",
+                            "selectedValuesAndDescriptors": "<% list:nonNull([pageVariables.data.jobProfile ?? null]) %>",
+                            "required": true,
+                            "visible": false,
+                            "onSearch": "<%
+                              pageVariables.jobProfiles = searchStandardJobProfiles.invoke({'searchQuery': event.query}).data;
+                              return pageVariables.jobProfiles.map(x => {x.jobProfile});
+                            %>",
+                            "onChange": "<%
+                              updateFlowMapping();
+                              redefaultRecruitingInstruction();
+                              updateVisibility();
+                            %>"
+                          },
+                          {
+                            "enabled": false,
+                            "type": "richText",
+                            "id": "jobProfileHelpText",
+                            "value": "<span style='color: #0000FF'><i>↑ Please refer to clause 38 of the Enterprise Agreement for further information.</i></span>"
+                          },
+                          {
+                            "type": "externalLink",
+                            "id": "jobProfileLink",
+                            "descriptor": "View Job Profile",
+                            "visible": false
+                          },
+                          {
+                            "type": "dropdown",
+                            "id": "jobCategory",
+                            "label": "Is this an Academic or Professional role?",
+                            "required": true,
+                            "visible": false,
+                            "values": "<% Values.getAllJobCategories() %>",
+                            "selectedValues": "<% [pageVariables.data.jobCategorySearchRefId ?? ''] %>",
+                            "onChange": "<%
+                              redefaultRecruitingInstruction();
+                              updateVisibility();
+                              updateAllowedCompGrades();
+                            %>"
+                          },
+                          {
+                            "type": "instanceList",
+                            "id": "compensationGrade",
+                            "label": "What is the Compensation Grade for this role?",
+                            "values": "<% getAllCompensationGrades() ?? [] %>",
+                            "selectedValues": "<% pageVariables.data.compensationGradeSearchRefIds ?? [] %>",
+                            "multiSelect": true,
+                            "required": true,
+                            "visible": false,
+                            "onChange": "<%
+                              validateCompGradeSearch();
+                              updateVisibility();
+                            %>"
+                          },
+                          {
+                            "type": "text",
+                            "id": "jobProfileSearch",
+                            "label": "What type of job are you looking for?",
+                            "value": "<% pageVariables.data.jobProfileSearch ?? '' %>",
+                            "required": true,
+                            "visible": false,
+                            "onChange": "<%
+                              validateJobProfileSearch();
+                              updateVisibility();
+                            %>"
+                          },
+                          {
+                            "type": "richText",
+                            "id": "jobProfileSearchHelpText",
+                            "enabled": false,
+                            "value": "<span style='color: #0000FF'><i>↑ Please use keywords such as Admin, Research, IT, Finance and etc. Please do not input any numbers or any special characters.</i></span>"
+                          },
+                          {
+                            "type": "radioGroup",
+                            "id": "isCandidateKnown",
+                            "label": "Have you already selected a candidate? If you will be recruiting on a Merit Basis, please select No.",
+                            "required": true,
+                            "instanceList": [
+                              {
+                                "id": "yes",
+                                "descriptor": "Yes"
+                              },
+                              {
+                                "id": "no",
+                                "descriptor": "No"
+                              }
+                            ],
+                            "selectedValues": "<% [pageVariables.data.isCandidateKnownId ?? ''] %>",
+                            "onChange": "<%
+                              redefaultRecruitingInstruction();
+                              updateVisibility();
+                            %>"
+                          },
+                          {
+                            "type": "dropdown",
+                            "id": "fixedTermReason",
+                            "label": "Fixed Term Reason",
+                            "values": "<% pageVariables.data.customLists.filter(x => {x.customListRefId == 'TACREW_POSITION'}) ?? [] %>",
+                            "selectedValues": "<% [pageVariables.data.fixedTermReasonRefId ?? ''] %>",
+                            "visible": false,
+                            "required": true,
+                            "onChange": "<% updateVisibility() %>",
+                            "guide": {
+                              "type": "guide",
+                              "id": "fixedTermReasonGuide",
+                              "text": "As you have indicated the position you are creating is fixed term, you are required to enter the Fixed Term Reason. Select the most relevant reason for the creation of this fixed term position. Refer to clause 25 (on page 14) in the Enterprise Agreement for more guidance.",
+                              "linkText": "View Enterprise Agreement",
+                              "linkUrl": "https://intranet.sydney.edu.au/employment/enterprise-agreement/ea-parts/part-b.html#when-may-staff-be-employed-on-a-fixed-term-basis"
+                            }
+                          },
+                          {
+                            "type": "richText",
+                            "id": "fixedTermRationaleReasonHelpText",
+                            "enabled": false,
+                            "_comment": "Conditionally populated in updateVisibility()"
+                          },
+                          {
+                            "type": "textArea",
+                            "id": "fixedTermRationaleReason",
+                            "label": "Fixed Term Rationale",
+                            "value": "<% pageVariables.data.fixedTermRationaleReason ?? '' %>",
+                            "onChange": "<%
+                              Common.validateMaxLength(self, 255);
+                            %>",
+                            "visible": false,
+                            "required": true
+                          },
+                          {
+                            "type": "dropdown",
+                            "id": "reason",
+                            "label": "Reason",
+                            "values": "<% getReasons() %>",
+                            "selectedValues": "<% [pageVariables.data.reasonRefId ?? ''] %>",
+                            "required": true,
+                            "onChange": "<%
+                              redefaultRecruitingInstruction();
+                              updateFlowMapping();
+                            %>",
+                            "guide": {
+                              "type": "guide",
+                              "id": "reasonGuide",
+                              "text": "Note: Select the most appropriate reason to describe why you are creating a Job Requisition. This data is used for reporting purposes.
+  New Position
+  • Budgeted: The role is budgeted
+  • Non-Budgeted: E.g. The role is project based
+  • Conversion: If the role has an approved conversion (only raised by TCS)
+  • Appointment on Nomination: If the role has a nominated candidate to be appointed and complies with R&A Policy
+  
+  Existing Position
+  • Backfill for Secondment: If this role is backfilling a staff member on a secondment. This will create a new position once the requisition has been approved
+  • Backfill for Extended Leave: If this role requires a backfill for extended leave. This will create a new position once the requisition has been approved
+  • Backfill for Resignation: If the position will be backfilling for a resignation/replacement
+  • Conversion: If the role is an approved conversion (only raised by TCS)
+  • Appointment on Nomination: If the role has a nominated candidate to be appointed and complies with R&A Policy",
+                              "linkText": "R&A Policy",
+                              "linkUrl": "https://www.sydney.edu.au/policies/showdoc.aspx?recnum=PDOC2011/120&RendNum=0"
+                            }
+                          },
+                          {
+                            "type": "date",
+                            "id": "targetHireDate",
+                            "label": "What is the proposed contract start date?",
+                            "value": "<% setHireDate() %>",
+                            "required": true,
+                            "visible": false,
+                            "onChange": "<% validateDateIsTomorrow() %>"
+                          },
+                          {
+                            "type": "richText",
+                            "id": "durationLabel",
+                            "value": "<% '<b>What is the approximate contract duration?' + site.appProperties.required + '</b>' %>",
+                            "enabled": false,
+                            "visible": false
+                          },
+                          {
+                            "type": "section",
+                            "id": "durationYearsContainer",
+                            "horizontal": true,
+                            "children": [
+                              {
+                                "type": "dropdown",
+                                "id": "durationYears",
+                                "values": "<% [].addAll(0 to 5).map(x => {{'id': x, 'descriptor': x}}) %>",
+                                "selectedValues": "<% [getSavedDuration()[0] ?? '0'] %>",
+                                "visible": false,
+                                "onChange": "<% validateContractDates() %>",
+                                "guide": {
+                                  "type": "guide",
+                                  "id": "durationYearGuide",
+                                  "text": "Please select the appropriate contract duration either in month(s) or year(s)"
+                                }
+                              },
+                              {
+                                "type": "text",
+                                "id": "durationYearsLabel",
+                                "value": "Years",
+                                "enabled": false,
+                                "guide": {
+                                  "type": "guide",
+                                  "id": "durationMonthGuide",
+                                  "text": "Please select the appropriate contract duration either in month(s) or year(s)"
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "type": "section",
+                            "id": "durationMonthsContainer",
+                            "horizontal": true,
+                            "children": [
+                              {
+                                "type": "dropdown",
+                                "id": "durationMonths",
+                                "values": "<% [].addAll(0 to 11).map(x => {{'id': x, 'descriptor': x}}) %>",
+                                "selectedValues": "<% [getSavedDuration()[1] ?? '0'] %>",
+                                "visible": false,
+                                "onChange": "<% validateContractDates() %>"
+                              },
+                              {
+                                "type": "text",
+                                "id": "durationMonthsLabel",
+                                "value": "Months",
+                                "enabled": false
+                              }
+                            ]
+                          },
+                          {
+                            "type": "date",
+                            "id": "targetEndDate",
+                            "label": "Proposed contract end date",
+                            "value": "<% pageVariables.data.targetEndDate ?? '' %>",
+                            "required": true,
+                            "visible": false,
+                            "onChange": "<% validateContractDates() %>"
+                          },
+                          {
+                            "type": "text",
+                            "id": "substantivePositionRefId",
+                            "label": "Substantive Position",
+                            "enabled": false,
+                            "visible": false
+                          },
+                          {
+                            "type": "dropdown",
+                            "id": "timeType",
+                            "label": "What is the relevant time type for the position",
+                            "required": true,
+                            "values": "<% Values.getAllTimeTypes() %>",
+                            "selectedValues": "<% [pageVariables.data.timeTypeRefId ?? ''] %>",
+                            "guide": {
+                              "type": "guide",
+                              "id": "timeTypeGuide",
+                              "text": "For casuals, time type is defaulted to part time due to system requirements. This has no bearing upon their actual working hours."
+                            }
+                          },
+                          {
+                            "type": "dropdown",
+                            "id": "recruitingInstruction",
+                            "label": "Recruiting Instructions",
+                            "values": "<% Values.getAllRecruitingInstructions() %>",
+                            "selectedValues": "<% [pageVariables.data.recruitingInstructionsRefId ?? ''] %>",
+                            "required": true,
+                            "onChange": "<% updateVisibility() %>",
+                            "guide": {
+                              "type": "guide",
+                              "id": "recruitingInstructionGuide",
+                              "text": "This field will automatically populate based off the selections made in the above questions. If you believe that the Recruiting Instruction may not be accurate, please utilise the below information to make the correct selection.
+  
+  The following Recruiting Instructions will workflow through to the Recruitment team -
+  • Merit Based Selection: Fixed term and continuing professional and academic roles that require sourcing
+  • Merit Based (Education Focused): Education Focused (EFR) fixed term and continuing academic roles that require sourcing
+  • Professional Casual - Recruitment Required: Casual roles that require sourcing
+  • Direct Appointment (Clause 16 of rec policy): Please refer to clause 16 of the recruitment policy to ensure that a direct appointment can proceed
+  • Contingent Worker: Roles to be filled by a temporary contract worker who will be employed directly through a recruitment agency
+  
+  The following Recruiting Instructions will workflow through to the Transactional and Client Services team -
+  • Appointment on Nomination: Please refer to clause 15 of the recruitment policy to ensure that a direct appointment can proceed
+  • Professional Casual - Candidate Known: Casual roles that do not require sourcing, as a suitable candidate has already been identified
+  • Approved Conversion Education Focused: Education Focused fixed term and continuing academic roles where an internal candidate is eligible for conversion
+  • Approved Conversion: Fixed term and continuing professional roles where an internal candidate is eligible for conversion."
+                            }
+                          },
+                          {
+                            "type": "radioGroup",
+                            "id": "isWithinBudget",
+                            "label": "Does this hire fall within the budget allocation for casual labour?",
+                            "required": true,
+                            "visible": false,
+                            "instanceList": [
+                              {
+                                "id": "yes",
+                                "descriptor": "Yes"
+                              },
+                              {
+                                "id": "no",
+                                "descriptor": "No"
+                              }
+                            ],
+                            "selectedValues": "<% [pageVariables.data.isWithinBudgetId ?? ''] %>",
+                            "onChange": "<% updateVisibility() %>"
+                          },
+                          {
+                            "type": "textArea",
+                            "label": "Justification/Additional Notes",
+                            "id": "justification",
+                            "value": "<% pageVariables.data.justification ?? '' %>"
+                          },
+                          {
+                            "enabled": false,
+                            "type": "richText",
+                            "id": "justificationHelpText",
+                            "value": "<p style=\"font-family: Roboto; font-size: 14px; color: #0000FF;\"><i>Please include any relevant information you would like to share with the HR team or attachment/s can be added on Step 4: Position Page eg. business case, EBN for FMH</i></span>."
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "hidden",
+            "id": "afterLoad",
+            "value": "<%
+              updateFlowMapping();
+              updateAllowedCompGrades();
+            %>"
+          },
+          {
+            "type": "editButtonBar",
+            "editButtons": [
+              {
+                "type": "editButton",
+                "label": "Next",
+                "id": "nextBtn",
+                "buttonType": "PRIMARY"
+              },
+              {
+                "type": "editButton",
+                "label": "Save For Later",
+                "id": "saveForLaterBtn",
+                "buttonType": "AUXILIARY",
+                "ignoreRequiredFields": true,
+                "visible": "<% pageVariables.data.isDraft ?? false %>"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
